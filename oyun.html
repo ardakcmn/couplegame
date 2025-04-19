@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sevgililer Oyunu</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #ffb6c1; /* Pastel pembe arka plan */
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            border: 2px solid #000;
+            background-color: #fff;
+            max-width: 100%;
+            height: auto;
+            touch-action: none; /* Dokunmatik kaydırmayı engeller */
+        }
+        #gameOver {
+            position: absolute;
+            color: #000;
+            font-size: 24px;
+            text-align: center;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        #restartButton {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #ff69b4;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #restartButton:hover {
+            background-color: #ff1493;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #000;
+            font-size: 20px;
+        }
+        @media (max-width: 600px) {
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+            #gameOver {
+                font-size: 18px;
+            }
+            #restartButton {
+                font-size: 16px;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Skor: 0</div>
+    <div id="gameOver">
+        <span>Oyun Bitti! Seni yine de seviyorum! ♥</span>
+        <button id="restartButton">Yeniden Başlat</button>
+    </div>
+    <canvas id="gameCanvas" width="600" height="200"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const gameOverDisplay = document.getElementById('gameOver');
+        const restartButton = document.getElementById('restartButton');
+
+        // Görselleri yükleme (URL'leri kendi görsellerinizle değiştirin)
+        const playerImg = new Image();
+        playerImg.src = 'https://i.hizliresim.com/3e9k6bo.png'; // Senin yüzün
+        const bonusImg = new Image();
+        bonusImg.src = 'https://i.hizliresim.com/5ox2sim.jfif'; // Sevgilinin yüzü
+        const heartImg = new Image();
+        heartImg.src = 'https://e7.pngegg.com/pngimages/910/545/png-clipart-heart-pixel-art-pixel-flag-text.png'; // Kalp görseli
+
+        // Oyun değişkenleri
+        let player = {
+            x: 50,
+            y: 160,
+            width: 40,
+            height: 40,
+            velocity: 0,
+            jumping: false
+        };
+        let hearts = [{ x: 600, y: 180, width: 20, height: 20 }];
+        let bonuses = [{ x: 800, y: 130, width: 30, height: 30 }];
+        let score = 0;
+        let gameOver = false;
+        const gravity = 0.8;
+        const jumpVelocity = -15;
+        let heartSpeed = 5;
+        const bonusSpeed = 5;
+
+        // Klavye ve dokunmatik girişler
+        function jump() {
+            if (!player.jumping && !gameOver) {
+                player.jumping = true;
+                player.velocity = jumpVelocity;
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                jump();
+            }
+        });
+
+        canvas.addEventListener('touchstart', (event) => {
+            event.preventDefault(); // Sayfanın kaymasını engeller
+            jump();
+        });
+
+        restartButton.addEventListener('click', () => {
+            // Oyunu sıfırla
+            score = 0;
+            heartSpeed = 5;
+            player.y = 160;
+            player.velocity = 0;
+            player.jumping = false;
+            hearts = [{ x: 600, y: 180, width: 20, height: 20 }];
+            bonuses = [{ x: 800, y: 130, width: 30, height: 30 }];
+            gameOver = false;
+            gameOverDisplay.style.display = 'none';
+            scoreDisplay.textContent = `Skor: ${score}`;
+            loop();
+        });
+
+        // Çarpışma kontrolü
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // Oyun döngüsü
+        function loop() {
+            if (gameOver) return;
+
+            // Zıplama ve yerçekimi
+            if (player.jumping) {
+                player.y += player.velocity;
+                player.velocity += gravity;
+                if (player.y >= 160) {
+                    player.y = 160;
+                    player.jumping = false;
+                    player.velocity = 0;
+                }
+            }
+
+            // Kalp hareketi
+            hearts.forEach(heart => {
+                heart.x -= heartSpeed;
+            });
+            if (hearts[0].x < -hearts[0].width) {
+                hearts.shift();
+                hearts.push({ x: 600, y: 180, width: 20, height: 20 });
+                score++;
+                heartSpeed += 0.1; // Hız artışı
+            }
+
+            // Bonus hareketi
+            bonuses.forEach(bonus => {
+                bonus.x -= bonusSpeed;
+            });
+            if (bonuses[0].x < -bonuses[0].width) {
+                bonuses.shift();
+                bonuses.push({ x: 600 + Math.random() * 400, y: 130 - Math.random() * 50, width: 30, height: 30 });
+            }
+
+            // Çarpışma kontrolü
+            if (checkCollision(player, hearts[0])) {
+                gameOver = true;
+                gameOverDisplay.style.display = 'flex';
+            }
+            if (checkCollision(player, bonuses[0])) {
+                score += 10;
+                bonuses.shift();
+                bonuses.push({ x: 600 + Math.random() * 400, y: 130 - Math.random() * 50, width: 30, height: 30 });
+            }
+
+            // Ekranı çizme
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+            hearts.forEach(heart => ctx.drawImage(heartImg, heart.x, heart.y, heart.width, heart.height));
+            bonuses.forEach(bonus => ctx.drawImage(bonusImg, bonus.x, bonus.y, bonus.width, bonus.height));
+            scoreDisplay.textContent = `Skor: ${score}`;
+
+            requestAnimationFrame(loop);
+        }
+
+        // Görseller yüklendikten sonra oyunu başlat
+        Promise.all([
+            new Promise(resolve => playerImg.onload = resolve),
+            new Promise(resolve => bonusImg.onload = resolve),
+            new Promise(resolve => heartImg.onload = resolve)
+        ]).then(() => {
+            loop();
+        });
+    </script>
+</body>
+</html>
